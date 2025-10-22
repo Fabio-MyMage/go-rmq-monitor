@@ -1,0 +1,41 @@
+# Example configuration
+# Copy this to config.yaml and customize for your environment
+
+rabbitmq:
+  host: "rabbitmq.example.com"
+  port: 443
+  username: "monitor-user"
+  password: "change-this-password"
+  vhost: "/production"
+  use_tls: true
+
+monitor:
+  # Global monitoring interval
+  interval: 2m
+  
+  # Global detection defaults
+  detection:
+    # Alert after 3 consecutive stuck detections
+    threshold_checks: 3
+    # Only alert if queue has at least 50 messages
+    min_message_count: 50
+    # Consider stuck if consuming less than 0.5 msgs/sec
+    # Set to -1 to disable rate checking (only check message count trends)
+    min_consume_rate: 0.5
+  
+  # Monitor queues with per-queue settings
+  queues:
+    - name: "queue_example_1"
+      check_interval: 30s        # Check every 30 seconds
+      threshold_checks: 2        # Alert faster
+      min_consume_rate: 1.0      # Expect high throughput
+    
+    - name: "queue_example_2"
+      check_interval: 1m         
+      threshold_checks: 5
+      min_consume_rate: 0.5
+
+logging:
+  file_path: "/var/log/rabbitmq-monitor/stuck-queues.log"
+  level: "info"
+  format: "json" 

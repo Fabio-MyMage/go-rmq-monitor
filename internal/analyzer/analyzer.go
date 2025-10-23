@@ -147,8 +147,8 @@ func (a *Analyzer) isQueueStuck(state *QueueState, cfg config.DetectionConfig) (
 
 	latest := state.History[len(state.History)-1]
 
-	// Ignore queues with few messages
-	if latest.MessagesReady < cfg.MinMessageCount {
+	// Ignore queues with few messages (or empty queues)
+	if latest.MessagesReady <= cfg.MinMessageCount {
 		return false, ""
 	}
 
@@ -195,9 +195,15 @@ func (a *Analyzer) isMessageCountStagnant(state *QueueState, cfg config.Detectio
 	firstCount := recentHistory[0].MessagesReady
 	lastCount := recentHistory[len(recentHistory)-1].MessagesReady
 
+	// If both are at or below min threshold, queue is healthy (empty or nearly empty)
+	// This prevents false positives when a queue stays at 0 messages
+	if firstCount <= 0 && lastCount <= 0 {
+		return false
+	}
+
 	// Consider it stagnant only if:
 	// 1. Message count increased, OR
-	// 2. Message count stayed exactly the same, OR
+	// 2. Message count stayed exactly the same (and above 0), OR
 	// 3. Message count decreased by less than 1 message per check on average
 	//
 	// This prevents false positives for slow-processing queues that ARE making progress
@@ -207,7 +213,7 @@ func (a *Analyzer) isMessageCountStagnant(state *QueueState, cfg config.Detectio
 	}
 	
 	if lastCount == firstCount {
-		// No change at all - stuck
+		// No change at all - stuck (we already filtered out the 0==0 case above)
 		return true
 	}
 	

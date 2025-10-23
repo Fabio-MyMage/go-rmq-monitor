@@ -264,13 +264,17 @@ func (s *Service) performCheck() error {
 // logStuckQueue logs a stuck queue alert
 func (s *Service) logStuckQueue(alert analyzer.StuckQueueAlert) {
 	s.logger.Warn("STUCK QUEUE DETECTED", map[string]interface{}{
-		"queue":            alert.QueueName,
-		"messages_ready":   alert.MessagesReady,
-		"consumers":        alert.Consumers,
-		"consume_rate":     alert.ConsumeRate,
-		"ack_rate":         alert.AckRate,
+		"queue":             alert.QueueName,
+		"messages_ready":    alert.MessagesReady,
+		"consumers":         alert.Consumers,
+		"consume_rate":      alert.ConsumeRate,
+		"ack_rate":          alert.AckRate,
 		"consecutive_stuck": alert.ConsecutiveStuck,
-		"reason":           alert.Reason,
-		"timestamp":        alert.Timestamp.Format(time.RFC3339),
+		"reason":            alert.Reason,
+		"timestamp":         alert.Timestamp.Format(time.RFC3339),
+		// Detection parameters for context
+		"threshold_checks":  alert.ThresholdChecks,
+		"min_message_count": alert.MinMessageCount,
+		"min_consume_rate":  alert.MinConsumeRate,
 	})
 }

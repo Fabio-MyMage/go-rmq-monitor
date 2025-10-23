@@ -27,14 +27,18 @@ type QueueSnapshot struct {
 
 // StuckQueueAlert contains information about a stuck queue
 type StuckQueueAlert struct {
-	QueueName       string
-	Timestamp       time.Time
-	MessagesReady   int
-	Consumers       int
-	ConsumeRate     float64
-	AckRate         float64
+	QueueName        string
+	Timestamp        time.Time
+	MessagesReady    int
+	Consumers        int
+	ConsumeRate      float64
+	AckRate          float64
 	ConsecutiveStuck int
-	Reason          string
+	Reason           string
+	// Detection parameters used
+	ThresholdChecks  int
+	MinMessageCount  int
+	MinConsumeRate   float64
 }
 
 // Analyzer analyzes queue health and detects stuck queues
@@ -116,14 +120,18 @@ func (a *Analyzer) Analyze(queues []rabbitmq.QueueInfo) []StuckQueueAlert {
 				// Avoid duplicate alerts within 5 minutes
 				if now.Sub(state.LastAlertTime) >= 5*time.Minute {
 					alert := StuckQueueAlert{
-						QueueName:       queue.Name,
-						Timestamp:       now,
-						MessagesReady:   queue.MessagesReady,
-						Consumers:       queue.Consumers,
-						ConsumeRate:     queue.ConsumeRate,
-						AckRate:         queue.AckRate,
+						QueueName:        queue.Name,
+						Timestamp:        now,
+						MessagesReady:    queue.MessagesReady,
+						Consumers:        queue.Consumers,
+						ConsumeRate:      queue.ConsumeRate,
+						AckRate:          queue.AckRate,
 						ConsecutiveStuck: state.ConsecutiveStuck,
-						Reason:          reason,
+						Reason:           reason,
+						// Include detection parameters for context
+						ThresholdChecks:  queueConfig.ThresholdChecks,
+						MinMessageCount:  queueConfig.MinMessageCount,
+						MinConsumeRate:   queueConfig.MinConsumeRate,
 					}
 					alerts = append(alerts, alert)
 					state.LastAlertTime = now

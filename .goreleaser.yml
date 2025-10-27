@@ -1,0 +1,108 @@
+# GoReleaser configuration for go-rmq-monitor
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - id: go-rmq-monitor
+    binary: go-rmq-monitor
+    main: ./main.go
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Skip unsupported combinations
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - config.example.yaml
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: Fabio-MyMage
+    name: go-rmq-monitor
+  draft: false
+  prerelease: auto
+  name_template: "{{.ProjectName}} {{.Version}}"
+  header: |
+    ## RabbitMQ Queue Monitor - Release {{.Version}}
+    
+    Download the appropriate binary for your platform below.
+  footer: |
+    ## Installation
+    
+    1. Download the appropriate binary for your OS/architecture
+    2. Extract the archive: `tar -xzf go-rmq-monitor_*.tar.gz` (or unzip for Windows)
+    3. Make executable (Linux/Mac): `chmod +x go-rmq-monitor`
+    4. Move to PATH: `sudo mv go-rmq-monitor /usr/local/bin/`
+    5. Copy and configure: `cp config.example.yaml config.yaml`
+    
+    ## Quick Start
+    
+    ```bash
+    # Test connection
+    ./go-rmq-monitor test --config config.yaml
+    
+    # Start monitoring
+    ./go-rmq-monitor monitor --config config.yaml
+    
+    # Run as daemon with verbose logging
+    ./go-rmq-monitor monitor --config config.yaml -d -vvv
+    ```
+    
+    **Full Changelog**: https://github.com/Fabio-MyMage/go-rmq-monitor/compare/{{.PreviousTag}}...{{.Tag}}

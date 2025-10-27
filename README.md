@@ -22,8 +22,8 @@ Download the latest release for your platform from the [Releases page](https://g
 
 ```bash
 # Example for Linux amd64
-wget https://github.com/Fabio-MyMage/go-rmq-monitor/releases/download/v0.0.1/go-rmq-monitor_0.0.1_Linux_x86_64.tar.gz
-tar -xzf go-rmq-monitor_0.0.1_Linux_x86_64.tar.gz
+wget https://github.com/Fabio-MyMage/go-rmq-monitor/releases/download/v0.0.2/go-rmq-monitor_0.0.2_linux_amd64.tar.gz
+tar -xzf go-rmq-monitor_0.0.2_linux_amd64.tar.gz
 sudo mv go-rmq-monitor /usr/local/bin/
 ```
 

@@ -16,16 +16,28 @@ A Go CLI application that continuously monitors RabbitMQ queues to detect stuck 
 
 ## Installation
 
+### Download Pre-built Binary
+
+Download the latest release for your platform from the [Releases page](https://github.com/Fabio-MyMage/go-rmq-monitor/releases).
+
+```bash
+# Example for Linux amd64
+wget https://github.com/Fabio-MyMage/go-rmq-monitor/releases/download/v0.0.1/go-rmq-monitor_0.0.1_Linux_x86_64.tar.gz
+tar -xzf go-rmq-monitor_0.0.1_Linux_x86_64.tar.gz
+sudo mv go-rmq-monitor /usr/local/bin/
+```
+
 ### Prerequisites
 
-- Go 1.21 or higher
+- Go 1.21 or higher (for building from source)
 - RabbitMQ with Management Plugin enabled
 
 ### Build from Source
 
 ```bash
 # Clone the repository
-cd /path/to/go-rmq-monitor
+git clone https://github.com/Fabio-MyMage/go-rmq-monitor.git
+cd go-rmq-monitor
 
 # Download dependencies
 go mod download

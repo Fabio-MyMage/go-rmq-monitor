@@ -1,36 +1,14 @@
 [Unit]
 Description=RabbitMQ Queue Monitor
-Documentation=https://github.com/yourusername/go-rmq-monitor
-After=network.target rabbitmq-server.service
-Wants=rabbitmq-server.service
+After=network.target
 
 [Service]
 Type=simple
 User=rabbitmq-monitor
-Group=rabbitmq-monitor
 WorkingDirectory=/opt/rabbitmq-monitor
-
-# Path to the binary
 ExecStart=/opt/rabbitmq-monitor/go-rmq-monitor monitor --config /etc/rabbitmq-monitor/config.yaml
-
-# Restart policy
 Restart=on-failure
 RestartSec=10s
-
-# Security settings
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/log/rabbitmq-monitor
-
-# Resource limits
-LimitNOFILE=65536
-
-# Logging
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=rabbitmq-monitor
 
 [Install]
 WantedBy=multi-user.target

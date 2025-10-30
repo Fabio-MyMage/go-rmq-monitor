@@ -15,7 +15,7 @@ func FormatAlert(alert QueueAlert) Message {
 
 // formatStuckMessage creates a Slack message for a stuck queue
 func formatStuckMessage(alert QueueAlert) Message {
-	timestamp := alert.Timestamp.Format("2006-01-02 15:04:05 MST")
+	timestamp := alert.Timestamp.UTC().Format("2006-01-02 15:04:05 UTC")
 
 	return Message{
 		Text: fmt.Sprintf("🚨 Queue `%s` is stuck!", alert.QueueName),
@@ -64,7 +64,7 @@ func formatStuckMessage(alert QueueAlert) Message {
 
 // formatRecoveryMessage creates a Slack message for a recovered queue
 func formatRecoveryMessage(alert QueueAlert) Message {
-	timestamp := alert.Timestamp.Format("2006-01-02 15:04:05 MST")
+	timestamp := alert.Timestamp.UTC().Format("2006-01-02 15:04:05 UTC")
 	duration := formatDuration(alert.StuckDuration)
 
 	return Message{

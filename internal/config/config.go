@@ -9,9 +9,10 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	RabbitMQ RabbitMQConfig `mapstructure:"rabbitmq"`
-	Monitor  MonitorConfig  `mapstructure:"monitor"`
-	Logging  LoggingConfig  `mapstructure:"logging"`
+	RabbitMQ      RabbitMQConfig      `mapstructure:"rabbitmq"`
+	Monitor       MonitorConfig       `mapstructure:"monitor"`
+	Logging       LoggingConfig       `mapstructure:"logging"`
+	Notifications NotificationsConfig `mapstructure:"notifications"`
 }
 
 // RabbitMQConfig contains RabbitMQ connection details
@@ -82,6 +83,21 @@ type LoggingConfig struct {
 	Format   string `mapstructure:"format"`
 }
 
+// NotificationsConfig contains notification settings
+type NotificationsConfig struct {
+	Slack SlackConfig `mapstructure:"slack"`
+}
+
+// SlackConfig contains Slack notification settings
+type SlackConfig struct {
+	Enabled          bool          `mapstructure:"enabled"`
+	WebhookURLs      []string      `mapstructure:"webhook_urls"`
+	AlertCooldown    time.Duration `mapstructure:"alert_cooldown"`
+	SendRecovery     bool          `mapstructure:"send_recovery"`
+	RecoveryCooldown time.Duration `mapstructure:"recovery_cooldown"`
+	Timeout          time.Duration `mapstructure:"timeout"`
+}
+
 // Load reads and parses the configuration file
 func Load(configPath string) (*Config, error) {
 	v := viper.New()
@@ -129,6 +145,12 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("logging.file_path", "/var/log/rabbitmq-monitor/stuck-queues.log")
 	v.SetDefault("logging.level", "info")
 	v.SetDefault("logging.format", "json")
+
+	v.SetDefault("notifications.slack.enabled", false)
+	v.SetDefault("notifications.slack.alert_cooldown", "15m")
+	v.SetDefault("notifications.slack.send_recovery", true)
+	v.SetDefault("notifications.slack.recovery_cooldown", "5m")
+	v.SetDefault("notifications.slack.timeout", "10s")
 }
 
 // validate performs basic validation on the configuration

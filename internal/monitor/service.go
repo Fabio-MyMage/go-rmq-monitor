@@ -9,6 +9,7 @@ import (
 	"go-rmq-monitor/internal/config"
 	"go-rmq-monitor/internal/logger"
 	"go-rmq-monitor/internal/rabbitmq"
+	"go-rmq-monitor/internal/slack"
 )
 
 // Service manages the monitoring process
@@ -17,6 +18,7 @@ type Service struct {
 	logger         *logger.Logger
 	client         *rabbitmq.Client
 	analyzer       *analyzer.Analyzer
+	slackClient    *slack.Client
 	queueIntervals map[string]time.Duration // Per-queue check intervals
 	lastCheckTimes map[string]time.Time     // Track last check time per queue
 	startTime      time.Time                 // Service start time for synchronized checks
@@ -76,11 +78,32 @@ func New(cfg *config.Config, log *logger.Logger, verbosity int) (*Service, error
 		}
 	}
 
+	// Create Slack client if enabled
+	var slackClient *slack.Client
+	if cfg.Notifications.Slack.Enabled {
+		slackConfig := slack.Config{
+			Enabled:          cfg.Notifications.Slack.Enabled,
+			WebhookURLs:      cfg.Notifications.Slack.WebhookURLs,
+			AlertCooldown:    cfg.Notifications.Slack.AlertCooldown,
+			SendRecovery:     cfg.Notifications.Slack.SendRecovery,
+			RecoveryCooldown: cfg.Notifications.Slack.RecoveryCooldown,
+			Timeout:          cfg.Notifications.Slack.Timeout,
+		}
+		slackClient = slack.New(slackConfig)
+		log.Info("Slack notifications enabled", map[string]interface{}{
+			"webhook_count":     len(slackConfig.WebhookURLs),
+			"alert_cooldown":    slackConfig.AlertCooldown.String(),
+			"send_recovery":     slackConfig.SendRecovery,
+			"recovery_cooldown": slackConfig.RecoveryCooldown.String(),
+		})
+	}
+
 	return &Service{
 		config:         cfg,
 		logger:         log,
 		client:         client,
 		analyzer:       analyzer,
+		slackClient:    slackClient,
 		queueIntervals: queueIntervals,
 		lastCheckTimes: lastCheckTimes,
 		startTime:      time.Now(), // Record start time for synchronized checks
@@ -230,17 +253,28 @@ func (s *Service) performCheck() error {
 	})
 
 	// Analyze queues for stuck status
-	alerts := s.analyzer.Analyze(queuesToCheck)
+	result := s.analyzer.Analyze(queuesToCheck)
 
 	// Log any stuck queue alerts
-	for _, alert := range alerts {
+	for _, alert := range result.StuckAlerts {
 		s.logStuckQueue(alert)
 	}
 
+	// Handle state transitions and send Slack notifications
+	if s.slackClient != nil {
+		for _, transition := range result.Transitions {
+			if err := s.handleStateTransition(transition, now); err != nil {
+				s.logger.Error("Failed to send Slack notification", err, map[string]interface{}{
+					"queue": transition.QueueName,
+				})
+			}
+		}
+	}
+
 	// Log results based on verbosity
-	if len(alerts) > 0 {
+	if len(result.StuckAlerts) > 0 {
 		s.logger.Info("Stuck queues detected", map[string]interface{}{
-			"count": len(alerts),
+			"count": len(result.StuckAlerts),
 		})
 	} else {
 		// Log healthy queues if verbosity >= 2
@@ -277,4 +311,70 @@ func (s *Service) logStuckQueue(alert analyzer.StuckQueueAlert) {
 		"min_message_count": alert.MinMessageCount,
 		"min_consume_rate":  alert.MinConsumeRate,
 	})
+}
+
+// handleStateTransition handles queue state changes and sends Slack notifications
+func (s *Service) handleStateTransition(transition analyzer.StateTransition, now time.Time) error {
+	state := s.analyzer.GetQueueState(transition.QueueName)
+	if state == nil {
+		return fmt.Errorf("queue state not found: %s", transition.QueueName)
+	}
+
+	// Determine cooldown based on transition type
+	var cooldown time.Duration
+	var alertType slack.AlertType
+	
+	if transition.ToState == "stuck" {
+		// Queue became stuck
+		cooldown = s.config.Notifications.Slack.AlertCooldown
+		alertType = slack.AlertTypeStuck
+	} else if transition.ToState == "healthy" {
+		// Queue recovered
+		if !s.config.Notifications.Slack.SendRecovery {
+			// Recovery notifications are disabled
+			s.logger.Debug("Skipping recovery notification (disabled)", map[string]interface{}{
+				"queue": transition.QueueName,
+			})
+			return nil
+		}
+		cooldown = s.config.Notifications.Slack.RecoveryCooldown
+		alertType = slack.AlertTypeRecovered
+	} else {
+		// Unknown transition, skip
+		return nil
+	}
+
+	// Check cooldown
+	if !state.LastSlackAlert.IsZero() && now.Sub(state.LastSlackAlert) < cooldown {
+		s.logger.Debug("Skipping Slack notification (cooldown active)", map[string]interface{}{
+			"queue":            transition.QueueName,
+			"alert_type":       string(alertType),
+			"cooldown":         cooldown.String(),
+			"time_since_last":  now.Sub(state.LastSlackAlert).String(),
+		})
+		return nil
+	}
+
+	// Create Slack alert
+	slackAlert := slack.QueueAlert{
+		Type:          alertType,
+		QueueName:     transition.QueueName,
+		MessagesReady: transition.QueueInfo.MessagesReady,
+		StuckDuration: transition.StuckDuration,
+	}
+
+	// Send notification
+	if err := s.slackClient.SendAlert(slackAlert); err != nil {
+		return err
+	}
+
+	// Update last alert time
+	state.LastSlackAlert = now
+
+	s.logger.Info("Sent Slack notification", map[string]interface{}{
+		"queue":      transition.QueueName,
+		"alert_type": string(alertType),
+	})
+
+	return nil
 }

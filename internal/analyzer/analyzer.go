@@ -10,10 +10,13 @@ import (
 
 // QueueState tracks the state of a queue over time
 type QueueState struct {
-	QueueName       string
-	History         []QueueSnapshot
+	QueueName        string
+	History          []QueueSnapshot
 	ConsecutiveStuck int
-	LastAlertTime   time.Time
+	LastAlertTime    time.Time
+	LastSlackAlert   time.Time     // Track last Slack notification time
+	LastKnownState   string        // "healthy" or "stuck"
+	StuckSince       time.Time     // When queue became stuck (for recovery duration)
 }
 
 // QueueSnapshot represents queue metrics at a point in time
@@ -39,6 +42,22 @@ type StuckQueueAlert struct {
 	ThresholdChecks  int
 	MinMessageCount  int
 	MinConsumeRate   float64
+}
+
+// StateTransition represents a queue state change
+type StateTransition struct {
+	QueueName     string
+	FromState     string // "healthy" or "stuck"
+	ToState       string // "healthy" or "stuck"
+	Timestamp     time.Time
+	StuckDuration time.Duration // For stuck→healthy transitions
+	QueueInfo     rabbitmq.QueueInfo
+}
+
+// AnalysisResult contains both alerts and state transitions
+type AnalysisResult struct {
+	StuckAlerts     []StuckQueueAlert
+	Transitions     []StateTransition
 }
 
 // Analyzer analyzes queue health and detects stuck queues
@@ -74,11 +93,12 @@ func (a *Analyzer) getConfigForQueue(queueName string) config.DetectionConfig {
 }
 
 // Analyze processes queue information and detects stuck queues
-func (a *Analyzer) Analyze(queues []rabbitmq.QueueInfo) []StuckQueueAlert {
+func (a *Analyzer) Analyze(queues []rabbitmq.QueueInfo) AnalysisResult {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	alerts := make([]StuckQueueAlert, 0)
+	transitions := make([]StateTransition, 0)
 	now := time.Now()
 
 	for _, queue := range queues {
@@ -115,6 +135,21 @@ func (a *Analyzer) Analyze(queues []rabbitmq.QueueInfo) []StuckQueueAlert {
 		if isStuck, reason := a.isQueueStuck(state, queueConfig); isStuck {
 			state.ConsecutiveStuck++
 			
+			// Check for state transition: healthy → stuck
+			if state.LastKnownState != "stuck" && state.ConsecutiveStuck >= queueConfig.ThresholdChecks {
+				// State changed from healthy to stuck
+				transition := StateTransition{
+					QueueName: queue.Name,
+					FromState: "healthy",
+					ToState:   "stuck",
+					Timestamp: now,
+					QueueInfo: queue,
+				}
+				transitions = append(transitions, transition)
+				state.LastKnownState = "stuck"
+				state.StuckSince = now
+			}
+			
 			// Only alert if we've crossed the threshold
 			if state.ConsecutiveStuck >= queueConfig.ThresholdChecks {
 				// Avoid duplicate alerts within 5 minutes
@@ -138,12 +173,32 @@ func (a *Analyzer) Analyze(queues []rabbitmq.QueueInfo) []StuckQueueAlert {
 				}
 			}
 		} else {
+			// Queue is healthy
+			// Check for state transition: stuck → healthy
+			if state.LastKnownState == "stuck" {
+				// State changed from stuck to healthy
+				stuckDuration := now.Sub(state.StuckSince)
+				transition := StateTransition{
+					QueueName:     queue.Name,
+					FromState:     "stuck",
+					ToState:       "healthy",
+					Timestamp:     now,
+					StuckDuration: stuckDuration,
+					QueueInfo:     queue,
+				}
+				transitions = append(transitions, transition)
+				state.LastKnownState = "healthy"
+			}
+			
 			// Reset counter if queue is healthy
 			state.ConsecutiveStuck = 0
 		}
 	}
 
-	return alerts
+	return AnalysisResult{
+		StuckAlerts: alerts,
+		Transitions: transitions,
+	}
 }
 
 // isQueueStuck determines if a queue is stuck based on its history
@@ -251,4 +306,11 @@ func (a *Analyzer) GetState(queueName string) (*QueueState, bool) {
 	defer a.mu.RUnlock()
 	state, exists := a.states[queueName]
 	return state, exists
+}
+
+// GetQueueState returns the current state for a queue (for Slack notifications)
+func (a *Analyzer) GetQueueState(queueName string) *QueueState {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.states[queueName]
 }

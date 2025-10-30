@@ -38,4 +38,20 @@ monitor:
 logging:
   file_path: "/var/log/rabbitmq-monitor/stuck-queues.log"
   level: "info"
-  format: "json" 
+  format: "json"
+
+notifications:
+  slack:
+    enabled: false
+    # Multiple webhook URLs - notifications will be sent to all of them
+    webhook_urls:
+      - "https://hooks.slack.com/services/YOUR/WEBHOOK/URL1"
+      - "https://hooks.slack.com/services/YOUR/WEBHOOK/URL2"
+    # Cooldown between stuck queue alerts for the same queue
+    alert_cooldown: 15m
+    # Send recovery notifications when queues become healthy
+    send_recovery: true
+    # Cooldown between recovery notifications for the same queue
+    recovery_cooldown: 5m
+    # HTTP timeout for webhook requests
+    timeout: 10s

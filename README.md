@@ -34,7 +34,7 @@ sudo mv go-rmq-monitor /usr/local/bin/
 
 ### Prerequisites
 
-- Go 1.21 or higher (for building from source)
+- Go 1.23 or higher (for building from source)
 - RabbitMQ with Management Plugin enabled
 
 ### Build from Source
@@ -214,7 +214,7 @@ sudo systemctl status rabbitmq-monitor
 Create a `Dockerfile`:
 
 ```dockerfile
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN go build -o go-rmq-monitor

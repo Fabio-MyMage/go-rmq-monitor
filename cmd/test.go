@@ -71,7 +71,7 @@ func runTest(cmd *cobra.Command, args []string) error {
 	fmt.Printf("📊 Queues in vhost '%s':\n", cfg.RabbitMQ.VHost)
 	queues, err := client.ListQueuesIn(cfg.RabbitMQ.VHost)
 	if err != nil {
-		fmt.Printf("❌ Failed to list queues: %w\n\n", err)
+		fmt.Printf("❌ Failed to list queues: %v\n\n", err)
 		fmt.Println("💡 Tip: Make sure the vhost name matches one from the list above")
 		return nil
 	}

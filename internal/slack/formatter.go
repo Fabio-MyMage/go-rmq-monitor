@@ -42,6 +42,12 @@ func formatAlertingMessage(alert QueueAlert) Message {
 					{Type: "mrkdwn", Text: fmt.Sprintf("*Consume Rate:*\n%.2f msg/s", alert.ConsumeRate)},
 					{Type: "mrkdwn", Text: fmt.Sprintf("*Ack Rate:*\n%.2f msg/s", alert.AckRate)},
 					{Type: "mrkdwn", Text: fmt.Sprintf("*Publish Rate:*\n%.2f msg/s", alert.PublishRate)},
+					{Type: "mrkdwn", Text: "*Monitor Status:*\n🔴 Alerting"},
+				},
+			},
+			{
+				Type: "section",
+				Fields: []TextObject{
 					{Type: "mrkdwn", Text: fmt.Sprintf("*Consecutive Stuck:*\n%d checks", alert.ConsecutiveStuck)},
 				},
 			},
@@ -83,7 +89,7 @@ func formatNotAlertingMessage(alert QueueAlert) Message {
 					{Type: "mrkdwn", Text: fmt.Sprintf("*Queue:*\n`%s`", alert.QueueName)},
 					{Type: "mrkdwn", Text: fmt.Sprintf("*VHost:*\n`%s`", alert.VHost)},
 					{Type: "mrkdwn", Text: fmt.Sprintf("*Was Alerting For:*\n%s ⏱️", duration)},
-					{Type: "mrkdwn", Text: "*Status:*\n🟢 Not Alerting"},
+					{Type: "mrkdwn", Text: "*Monitor Status:*\n🟢 Not Alerting"},
 				},
 			},
 			{
@@ -99,7 +105,6 @@ func formatNotAlertingMessage(alert QueueAlert) Message {
 				Type: "section",
 				Fields: []TextObject{
 					{Type: "mrkdwn", Text: fmt.Sprintf("*Publish Rate:*\n%.2f msg/s", alert.PublishRate)},
-					{Type: "mrkdwn", Text: "*Status:*\n🟢 Not Alerting"},
 				},
 			},
 			{

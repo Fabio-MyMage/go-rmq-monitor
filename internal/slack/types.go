@@ -27,8 +27,8 @@ type TextObject struct {
 type AlertType string
 
 const (
-	AlertTypeStuck     AlertType = "stuck"
-	AlertTypeRecovered AlertType = "recovered"
+	AlertTypeAlerting    AlertType = "alerting"
+	AlertTypeNotAlerting AlertType = "not_alerting"
 )
 
 // QueueAlert contains information for Slack notifications

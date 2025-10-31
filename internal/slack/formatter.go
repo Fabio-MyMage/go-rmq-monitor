@@ -5,26 +5,26 @@ import (
 	"time"
 )
 
-// FormatAlert formats a queue alert for Slack
+// FormatAlert formats a QueueAlert into a Slack message
 func FormatAlert(alert QueueAlert) Message {
-	if alert.Type == AlertTypeRecovered {
-		return formatRecoveryMessage(alert)
+	if alert.Type == AlertTypeAlerting {
+		return formatAlertingMessage(alert)
 	}
-	return formatStuckMessage(alert)
+	return formatNotAlertingMessage(alert)
 }
 
-// formatStuckMessage creates a Slack message for a stuck queue
-func formatStuckMessage(alert QueueAlert) Message {
+// formatAlertingMessage creates a Slack message for an alerting queue
+func formatAlertingMessage(alert QueueAlert) Message {
 	timestamp := alert.Timestamp.UTC().Format("2006-01-02 15:04:05 UTC")
 
 	return Message{
-		Text: fmt.Sprintf("🚨 Queue `%s` is stuck!", alert.QueueName),
+		Text: fmt.Sprintf("🚨 Queue `%s` is alerting!", alert.QueueName),
 		Blocks: []Block{
 			{
 				Type: "header",
 				Text: &TextObject{
 					Type: "plain_text",
-					Text: "🚨 Stuck Queue Alert",
+					Text: "🚨 Queue Alert",
 				},
 			},
 			{
@@ -62,19 +62,19 @@ func formatStuckMessage(alert QueueAlert) Message {
 	}
 }
 
-// formatRecoveryMessage creates a Slack message for a recovered queue
-func formatRecoveryMessage(alert QueueAlert) Message {
+// formatNotAlertingMessage creates a Slack message for a recovered queue
+func formatNotAlertingMessage(alert QueueAlert) Message {
 	timestamp := alert.Timestamp.UTC().Format("2006-01-02 15:04:05 UTC")
 	duration := formatDuration(alert.StuckDuration)
 
 	return Message{
-		Text: fmt.Sprintf("✅ Queue `%s` has recovered!", alert.QueueName),
+		Text: fmt.Sprintf("✅ Queue `%s` is no longer alerting!", alert.QueueName),
 		Blocks: []Block{
 			{
 				Type: "header",
 				Text: &TextObject{
 					Type: "plain_text",
-					Text: "✅ Queue Recovered",
+					Text: "✅ Queue No Longer Alerting",
 				},
 			},
 			{
@@ -82,8 +82,8 @@ func formatRecoveryMessage(alert QueueAlert) Message {
 				Fields: []TextObject{
 					{Type: "mrkdwn", Text: fmt.Sprintf("*Queue:*\n`%s`", alert.QueueName)},
 					{Type: "mrkdwn", Text: fmt.Sprintf("*VHost:*\n`%s`", alert.VHost)},
-					{Type: "mrkdwn", Text: fmt.Sprintf("*Was Stuck For:*\n%s ⏱️", duration)},
-					{Type: "mrkdwn", Text: "*Status:*\n🟢 Healthy"},
+					{Type: "mrkdwn", Text: fmt.Sprintf("*Was Alerting For:*\n%s ⏱️", duration)},
+					{Type: "mrkdwn", Text: "*Status:*\n🟢 Not Alerting"},
 				},
 			},
 			{
@@ -99,13 +99,13 @@ func formatRecoveryMessage(alert QueueAlert) Message {
 				Type: "section",
 				Fields: []TextObject{
 					{Type: "mrkdwn", Text: fmt.Sprintf("*Publish Rate:*\n%.2f msg/s", alert.PublishRate)},
-					{Type: "mrkdwn", Text: "*Status:*\n🟢 Healthy"},
+					{Type: "mrkdwn", Text: "*Status:*\n🟢 Not Alerting"},
 				},
 			},
 			{
 				Type: "context",
 				Elements: []TextObject{
-					{Type: "mrkdwn", Text: fmt.Sprintf("🕒 Recovered at: %s", timestamp)},
+					{Type: "mrkdwn", Text: fmt.Sprintf("🕒 No longer alerting at: %s", timestamp)},
 				},
 			},
 		},

@@ -15,8 +15,8 @@ type QueueState struct {
 	ConsecutiveStuck int
 	LastAlertTime    time.Time
 	LastSlackAlert   time.Time     // Track last Slack notification time
-	LastKnownState   string        // "healthy" or "stuck"
-	StuckSince       time.Time     // When queue became stuck (for recovery duration)
+	LastKnownState   string        // "not_alerting" or "alerting"
+	StuckSince       time.Time     // When queue became alerting (for recovery duration)
 }
 
 // QueueSnapshot represents queue metrics at a point in time
@@ -47,12 +47,12 @@ type StuckQueueAlert struct {
 // StateTransition represents a queue state change
 type StateTransition struct {
 	QueueName     string
-	FromState     string // "healthy" or "stuck"
-	ToState       string // "healthy" or "stuck"
+	FromState     string // "not_alerting" or "alerting"
+	ToState       string // "not_alerting" or "alerting"
 	Timestamp     time.Time
-	StuckDuration time.Duration // For stuck→healthy transitions
+	StuckDuration time.Duration // For alerting→not_alerting transitions
 	QueueInfo     rabbitmq.QueueInfo
-	Reason        string // Reason for the transition (for stuck state)
+	Reason        string // Reason for the transition (for alerting state)
 }
 
 // AnalysisResult contains both alerts and state transitions
@@ -136,19 +136,19 @@ func (a *Analyzer) Analyze(queues []rabbitmq.QueueInfo) AnalysisResult {
 		if isStuck, reason := a.isQueueStuck(state, queueConfig); isStuck {
 			state.ConsecutiveStuck++
 			
-			// Check for state transition: healthy → stuck
-			if state.LastKnownState != "stuck" && state.ConsecutiveStuck >= queueConfig.ThresholdChecks {
-				// State changed from healthy to stuck
+			// Check for state transition: not_alerting → alerting
+			if state.LastKnownState != "alerting" && state.ConsecutiveStuck >= queueConfig.ThresholdChecks {
+				// State changed from not_alerting to alerting
 				transition := StateTransition{
 					QueueName: queue.Name,
-					FromState: "healthy",
-					ToState:   "stuck",
+					FromState: "not_alerting",
+					ToState:   "alerting",
 					Timestamp: now,
 					QueueInfo: queue,
 					Reason:    reason,
 				}
 				transitions = append(transitions, transition)
-				state.LastKnownState = "stuck"
+				state.LastKnownState = "alerting"
 				state.StuckSince = now
 			}
 			
@@ -175,24 +175,24 @@ func (a *Analyzer) Analyze(queues []rabbitmq.QueueInfo) AnalysisResult {
 				}
 			}
 		} else {
-			// Queue is healthy
-			// Check for state transition: stuck → healthy
-			if state.LastKnownState == "stuck" {
-				// State changed from stuck to healthy
+			// Queue is not alerting
+			// Check for state transition: alerting → not_alerting
+			if state.LastKnownState == "alerting" {
+				// State changed from alerting to not_alerting
 				stuckDuration := now.Sub(state.StuckSince)
 				transition := StateTransition{
 					QueueName:     queue.Name,
-					FromState:     "stuck",
-					ToState:       "healthy",
+					FromState:     "alerting",
+					ToState:       "not_alerting",
 					Timestamp:     now,
 					StuckDuration: stuckDuration,
 					QueueInfo:     queue,
 				}
 				transitions = append(transitions, transition)
-				state.LastKnownState = "healthy"
+				state.LastKnownState = "not_alerting"
 			}
 			
-			// Reset counter if queue is healthy
+			// Reset counter if queue is not alerting
 			state.ConsecutiveStuck = 0
 		}
 	}
@@ -231,7 +231,7 @@ func (a *Analyzer) isQueueStuck(state *QueueState, cfg config.DetectionConfig) (
 			}
 			return true, "consume rate below threshold and messages not decreasing"
 		}
-		// Messages ARE decreasing despite low rate - queue is healthy (e.g., cron-based)
+		// Messages ARE decreasing despite low rate - queue is not alerting (e.g., cron-based)
 		return false, ""
 	}
 
@@ -260,7 +260,7 @@ func (a *Analyzer) isMessageCountStagnant(state *QueueState, cfg config.Detectio
 	firstCount := recentHistory[0].MessagesReady
 	lastCount := recentHistory[len(recentHistory)-1].MessagesReady
 
-	// If both are at or below min threshold, queue is healthy (empty or nearly empty)
+	// If both are at or below min threshold, queue is not alerting (empty or nearly empty)
 	// This prevents false positives when a queue stays at 0 messages
 	if firstCount <= 0 && lastCount <= 0 {
 		return false

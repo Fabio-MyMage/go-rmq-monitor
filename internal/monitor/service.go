@@ -277,18 +277,18 @@ func (s *Service) performCheck() error {
 			"count": len(result.StuckAlerts),
 		})
 	} else {
-		// Log healthy queues if verbosity >= 2
+		// Log not alerting queues if verbosity >= 2
 		if s.verbosity >= 2 {
-			healthyQueues := make([]string, 0, len(queuesToCheck))
+			notAlertingQueues := make([]string, 0, len(queuesToCheck))
 			for _, q := range queuesToCheck {
-				healthyQueues = append(healthyQueues, q.Name)
+				notAlertingQueues = append(notAlertingQueues, q.Name)
 			}
-			s.logger.Info("All checked queues healthy", map[string]interface{}{
-				"queues": healthyQueues,
+			s.logger.Info("All checked queues not alerting", map[string]interface{}{
+				"queues": notAlertingQueues,
 				"count":  len(queuesToCheck),
 			})
 		} else {
-			s.logger.Debug("All queues healthy", nil)
+			s.logger.Debug("All queues not alerting", nil)
 		}
 	}
 
@@ -324,11 +324,11 @@ func (s *Service) handleStateTransition(transition analyzer.StateTransition, now
 	var cooldown time.Duration
 	var alertType slack.AlertType
 	
-	if transition.ToState == "stuck" {
-		// Queue became stuck
+	if transition.ToState == "alerting" {
+		// Queue became alerting
 		cooldown = s.config.Notifications.Slack.AlertCooldown
-		alertType = slack.AlertTypeStuck
-	} else if transition.ToState == "healthy" {
+		alertType = slack.AlertTypeAlerting
+	} else if transition.ToState == "not_alerting" {
 		// Queue recovered
 		if !s.config.Notifications.Slack.SendRecovery {
 			// Recovery notifications are disabled
@@ -338,7 +338,7 @@ func (s *Service) handleStateTransition(transition analyzer.StateTransition, now
 			return nil
 		}
 		cooldown = s.config.Notifications.Slack.RecoveryCooldown
-		alertType = slack.AlertTypeRecovered
+		alertType = slack.AlertTypeNotAlerting
 	} else {
 		// Unknown transition, skip
 		return nil

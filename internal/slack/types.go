@@ -40,6 +40,7 @@ type QueueAlert struct {
 	Consumers        int
 	ConsumeRate      float64
 	AckRate          float64
+	PublishRate      float64
 	ConsecutiveStuck int
 	Reason           string
 	Timestamp        time.Time

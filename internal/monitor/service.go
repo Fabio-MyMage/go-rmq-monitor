@@ -357,10 +357,18 @@ func (s *Service) handleStateTransition(transition analyzer.StateTransition, now
 
 	// Create Slack alert
 	slackAlert := slack.QueueAlert{
-		Type:          alertType,
-		QueueName:     transition.QueueName,
-		MessagesReady: transition.QueueInfo.MessagesReady,
-		StuckDuration: transition.StuckDuration,
+		Type:             alertType,
+		QueueName:        transition.QueueName,
+		VHost:            transition.QueueInfo.VHost,
+		MessagesReady:    transition.QueueInfo.MessagesReady,
+		Consumers:        transition.QueueInfo.Consumers,
+		ConsumeRate:      transition.QueueInfo.ConsumeRate,
+		AckRate:          transition.QueueInfo.AckRate,
+		PublishRate:      transition.QueueInfo.PublishRate,
+		ConsecutiveStuck: state.ConsecutiveStuck,
+		Reason:           transition.Reason,
+		Timestamp:        transition.Timestamp,
+		StuckDuration:    transition.StuckDuration,
 	}
 
 	// Send notification

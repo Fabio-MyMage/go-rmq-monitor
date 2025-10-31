@@ -41,21 +41,21 @@ func formatStuckMessage(alert QueueAlert) Message {
 				Fields: []TextObject{
 					{Type: "mrkdwn", Text: fmt.Sprintf("*Consume Rate:*\n%.2f msg/s", alert.ConsumeRate)},
 					{Type: "mrkdwn", Text: fmt.Sprintf("*Ack Rate:*\n%.2f msg/s", alert.AckRate)},
+					{Type: "mrkdwn", Text: fmt.Sprintf("*Publish Rate:*\n%.2f msg/s", alert.PublishRate)},
 					{Type: "mrkdwn", Text: fmt.Sprintf("*Consecutive Stuck:*\n%d checks", alert.ConsecutiveStuck)},
-					{Type: "mrkdwn", Text: "*Status:*\n🔴 Stuck"},
 				},
 			},
 			{
 				Type: "section",
 				Text: &TextObject{
 					Type: "mrkdwn",
-					Text: fmt.Sprintf("*Reason:* %s", alert.Reason),
+					Text: fmt.Sprintf("*Problem:* %s", alert.Reason),
 				},
 			},
 			{
 				Type: "context",
 				Elements: []TextObject{
-					{Type: "mrkdwn", Text: fmt.Sprintf("🕒 %s", timestamp)},
+					{Type: "mrkdwn", Text: fmt.Sprintf("🕒 Alerted at: %s", timestamp)},
 				},
 			},
 		},
@@ -96,9 +96,16 @@ func formatRecoveryMessage(alert QueueAlert) Message {
 				},
 			},
 			{
+				Type: "section",
+				Fields: []TextObject{
+					{Type: "mrkdwn", Text: fmt.Sprintf("*Publish Rate:*\n%.2f msg/s", alert.PublishRate)},
+					{Type: "mrkdwn", Text: "*Status:*\n🟢 Healthy"},
+				},
+			},
+			{
 				Type: "context",
 				Elements: []TextObject{
-					{Type: "mrkdwn", Text: fmt.Sprintf("🕒 Recovered at %s", timestamp)},
+					{Type: "mrkdwn", Text: fmt.Sprintf("🕒 Recovered at: %s", timestamp)},
 				},
 			},
 		},

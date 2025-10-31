@@ -52,6 +52,7 @@ type StateTransition struct {
 	Timestamp     time.Time
 	StuckDuration time.Duration // For stuck→healthy transitions
 	QueueInfo     rabbitmq.QueueInfo
+	Reason        string // Reason for the transition (for stuck state)
 }
 
 // AnalysisResult contains both alerts and state transitions
@@ -144,6 +145,7 @@ func (a *Analyzer) Analyze(queues []rabbitmq.QueueInfo) AnalysisResult {
 					ToState:   "stuck",
 					Timestamp: now,
 					QueueInfo: queue,
+					Reason:    reason,
 				}
 				transitions = append(transitions, transition)
 				state.LastKnownState = "stuck"
